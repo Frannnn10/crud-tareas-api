@@ -1,0 +1,180 @@
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+    font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+
+.container{
+    background:#fff;
+    border-radius:20px;
+    box-shadow:0 20px 60px rgba(0,0,0,.3);
+    max-width:600px;
+    width:100%;
+    padding:40px;
+}
+
+h1{
+    color:#667eea;
+    margin-bottom:30px;
+    text-align:center;
+    font-size:2em;
+}
+
+.input-container,.task-actions{
+    display:flex;
+    gap:10px;
+}
+
+.input-container{margin-bottom:30px}
+
+#taskInput{
+    flex:1;
+    padding:15px;
+    border:2px solid #e0e0e0;
+    border-radius:10px;
+    font-size:16px;
+    transition:.3s;
+}
+
+#taskInput:focus{
+    outline:none;
+    border-color:#667eea;
+}
+
+#addBtn{
+    background:#667eea;
+    color:#fff;
+    border:none;
+    padding:15px 30px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:16px;
+    font-weight:bold;
+    transition:.3s;
+}
+
+#addBtn:hover{background:#5568d3}
+
+#taskList{list-style:none}
+
+.task-item{
+    background:#f8f9fa;
+    padding:15px;
+    margin-bottom:10px;
+    border-radius:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    transition:.2s;
+}
+
+.task-item:hover{transform:translateX(5px)}
+.task-item.completed{background:#d4edda}
+
+.task-content{
+    display:flex;
+    align-items:center;
+    flex:1;
+    gap:15px;
+}
+
+.checkbox-container{
+    position:relative;
+    cursor:pointer;
+    user-select:none;
+}
+
+.checkbox-container input{
+    position:absolute;
+    opacity:0;
+}
+
+.checkmark{
+    width:24px;
+    height:24px;
+    border:2px solid #667eea;
+    border-radius:6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#fff;
+    transition:.3s;
+}
+
+.checkbox-container:hover .checkmark{
+    border-color:#5568d3;
+}
+
+.checkbox-container input:checked~.checkmark{
+    background:#667eea;
+    border-color:#667eea;
+}
+
+.checkmark:after{
+    content:"";
+    display:none;
+    width:6px;
+    height:12px;
+    border:solid #fff;
+    border-width:0 2px 2px 0;
+    transform:rotate(45deg);
+}
+
+.checkbox-container input:checked~.checkmark:after{
+    display:block;
+}
+
+.task-text{
+    flex:1;
+    font-size:16px;
+    color:#333;
+    transition:.3s;
+}
+
+.task-item.completed .task-text{
+    text-decoration:line-through;
+    color:#6c757d;
+    opacity:.7;
+}
+
+.edit-btn,.delete-btn,.save-btn,.cancel-btn{
+    border:none;
+    padding:8px 15px;
+    border-radius:6px;
+    cursor:pointer;
+    font-size:14px;
+    color:#fff;
+    transition:.3s;
+}
+
+.edit-btn{background:#ffc107}
+.delete-btn,.cancel-btn{background:#dc3545}
+.save-btn{background:#28a745}
+
+.edit-btn:hover,
+.delete-btn:hover,
+.save-btn:hover,
+.cancel-btn:hover{
+    opacity:.8;
+}
+
+.edit-input{
+    flex:1;
+    padding:10px;
+    border:2px solid #667eea;
+    border-radius:6px;
+    font-size:16px;
+}
+
+.empty-state{
+    text-align:center;
+    color:#999;
+    padding:40px 20px;
+    font-size:18px;
+}
