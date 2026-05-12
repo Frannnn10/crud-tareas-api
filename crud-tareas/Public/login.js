@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-
     const loginForm = document.getElementById('loginForm');
 
     loginForm.addEventListener('submit', async (e) => {
@@ -20,17 +19,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const datos = await respuesta.json();
 
             if (respuesta.ok) {
+                // --- LA LÍNEA QUE FALTABA ---
+                // Guardamos el token en el bolsillo del navegador
+                localStorage.setItem('token', datos.token);
+                
                 alert("Inicio de sesión exitoso");
                 
-                // Redirigir al CRUD
+                // Redirigir al CRUD (index.html)
                 window.location.href = 'index.html';
             } else {
+                // Si el servidor responde con error (ej. contraseña mal)
                 alert("Error: " + datos.error);
             }
 
         } catch (error) {
-            alert("No se pudo conectar con el servidor");
+            console.error("Error de conexión:", error);
+            alert("No se pudo conectar con el servidor. Revisa la terminal.");
         }
     });
-
 });

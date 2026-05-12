@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const db = require("./database"); // Asegúrate que database.js esté en la misma carpeta
+const db = require("./database"); 
 const path = require("path");
 
 const app = express();
@@ -13,11 +13,10 @@ const SECRET = "secreto_super_seguro";
 app.use(cors());
 app.use(express.json());
 
-// IMPORTANTE: En tu foto la carpeta es "Public" con P mayúscula. 
-// Usamos path.join para evitar errores de rutas en Windows.
+// Servir archivos estáticos desde la carpeta "Public"
 app.use(express.static(path.join(__dirname, "Public")));
 
-// --- VERIFICACIÓN DE TOKEN ---
+// --- VERIFICACIÓN DE TOKEN (Middleware) ---
 function autenticarToken(req, res, next) {
     const header = req.headers["authorization"];
     const token = header && header.split(" ")[1];
@@ -70,6 +69,7 @@ app.post("/login", (req, res) => {
         const valida = await bcrypt.compare(password, user.password);
         if (!valida) return res.status(400).json({ error: "Contraseña incorrecta" });
 
+        // Generar Token incluyendo el ID del usuario
         const token = jwt.sign(
             { id: user.id, email: user.email },
             SECRET,
@@ -80,12 +80,12 @@ app.post("/login", (req, res) => {
     });
 });
 
-// --- RUTA PRINCIPAL (Carga el login) ---
+// --- RUTA PRINCIPAL ---
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "Public", "login.html"));
 });
 
-// --- RUTAS DEL CRUD (Protegidas) ---
+// --- RUTAS DEL CRUD (Protegidas con autenticarToken) ---
 
 // Obtener tareas del usuario logueado
 app.get("/tareas", autenticarToken, (req, res) => {
@@ -99,8 +99,8 @@ app.get("/tareas", autenticarToken, (req, res) => {
 app.post("/tareas", autenticarToken, (req, res) => {
     const { titulo, descripcion } = req.body;
     db.run(
-        `INSERT INTO tareas (titulo, descripcion, usuario_id) VALUES (?, ?, ?)`,
-        [titulo, descripcion, req.user.id],
+        `INSERT INTO tareas (titulo, descripcion, usuario_id, completada) VALUES (?, ?, ?, 0)`,
+        [titulo, descripcion || "", req.user.id],
         function (err) {
             if (err) return res.status(500).json({ error: "Error al crear tarea" });
             res.json({ id: this.lastID, message: "Tarea guardada" });
@@ -108,12 +108,30 @@ app.post("/tareas", autenticarToken, (req, res) => {
     );
 });
 
-// Eliminar tarea (solo si pertenece al usuario)
+// Actualizar tarea (completada o título)
+app.put("/tareas/:id", autenticarToken, (req, res) => {
+    const { titulo, completada } = req.body;
+    // Si viene completada se convierte a 1 o 0 para SQLite
+    const estado = completada ? 1 : 0;
+
+    db.run(
+        `UPDATE tareas SET titulo = COALESCE(?, titulo), completada = COALESCE(?, completada) 
+         WHERE id = ? AND usuario_id = ?`,
+        [titulo, estado, req.params.id, req.user.id],
+        function (err) {
+            if (err) return res.status(500).json({ error: "Error al actualizar" });
+            res.json({ message: "Tarea actualizada" });
+        }
+    );
+});
+
+// Eliminar tarea
 app.delete("/tareas/:id", autenticarToken, (req, res) => {
     db.run(
         `DELETE FROM tareas WHERE id = ? AND usuario_id = ?`,
         [req.params.id, req.user.id],
         function (err) {
+            if (err) return res.status(500).json({ error: "Error al eliminar" });
             if (this.changes === 0) return res.status(404).json({ error: "No encontrada" });
             res.json({ message: "Tarea eliminada" });
         }

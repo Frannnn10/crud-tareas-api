@@ -2,28 +2,24 @@
 const token = localStorage.getItem("token");
 
 if (!token) {
-    alert("Acceso denegado. Inicia sesión primero.");
+    // Si no hay token, no preguntamos nada, directo al login
     window.location.href = "login.html";
 }
 
-// Función para cerrar sesión (puedes usarla en un botón)
+// Función para cerrar sesión
 function cerrarSesion() {
     localStorage.removeItem("token");
     window.location.href = "login.html";
 }
 
 // --- 2. CONFIGURACIÓN DEL CRUD ---
-
-// Ahora las tareas se cargarán desde el servidor, no solo del localStorage
 let tasks = [];
-
 const taskInput = document.getElementById("taskInput");
 const addBtn = document.getElementById("addBtn");
 const taskList = document.getElementById("taskList");
 
 // --- 3. FUNCIONES CONECTADAS AL BACKEND ---
 
-// Cargar tareas desde la Base de Datos
 async function mostrarTareas() {
     try {
         const respuesta = await fetch('/tareas', {
@@ -31,35 +27,42 @@ async function mostrarTareas() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
+        if (respuesta.status === 401 || respuesta.status === 403) {
+            // Si el token es inválido o expiró, limpiamos y redirigimos
+            localStorage.removeItem("token");
+            alert("Tu sesión ha expirado. Inicia sesión de nuevo.");
+            window.location.href = "login.html";
+            return;
+        }
+
         if (respuesta.ok) {
             tasks = await respuesta.json();
             renderizarPantalla();
-        } else {
-            console.error("Error al obtener tareas");
         }
     } catch (error) {
         console.error("Error de conexión:", error);
     }
 }
 
-// Renderizar en el HTML (la lógica visual que ya tenías)
 function renderizarPantalla() {
     taskList.innerHTML = "";
-
     if (tasks.length === 0) {
         taskList.innerHTML = '<div class="empty-state">No hay tareas. ¡Agrega una!</div>';
         return;
     }
 
-    tasks.forEach(function (tarea, i) {
+    tasks.forEach(function (tarea) {
         let li = document.createElement("li");
         li.className = tarea.completada ? "task-item completed" : "task-item";
 
+        // Usamos tarea.completada (que viene de la DB como 0 o 1)
+        const isChecked = tarea.completada === 1 || tarea.completada === true;
+
         li.innerHTML = `
             <div class="task-content">
-                <input type="checkbox" ${tarea.completada ? "checked" : ""} 
+                <input type="checkbox" ${isChecked ? "checked" : ""} 
                     onchange="cambiarEstado(${tarea.id}, ${tarea.completada})">
-                <span class="task-text">${tarea.titulo || tarea.text || "Sin título"}</span>
+                <span class="task-text">${tarea.titulo || "Sin título"}</span>
             </div>
             <div class="task-actions">
                 <button onclick="editar(${tarea.id}, '${tarea.titulo}')">Editar</button>
@@ -69,7 +72,7 @@ function renderizarPantalla() {
     });
 }
 
-// Agregar tarea a la Base de Datos
+// Agregar tarea
 async function agregar() {
     let texto = taskInput.value.trim();
     if (texto === "") return alert("Escribe una tarea");
@@ -86,14 +89,14 @@ async function agregar() {
 
         if (respuesta.ok) {
             taskInput.value = "";
-            mostrarTareas(); // Recargamos desde la DB
+            mostrarTareas();
         }
     } catch (error) {
         alert("Error al guardar la tarea");
     }
 }
 
-// Eliminar tarea de la Base de Datos
+// Eliminar tarea
 async function eliminar(id) {
     if (confirm("¿Eliminar tarea?")) {
         try {
@@ -108,8 +111,10 @@ async function eliminar(id) {
     }
 }
 
-// Cambiar estado (esta parte requiere que tu server.js tenga la ruta PUT)
+// Cambiar estado
 async function cambiarEstado(id, estadoActual) {
+    // Convertimos a 1 o 0 para la base de datos
+    const nuevoEstado = estadoActual ? 0 : 1; 
     try {
         await fetch(`/tareas/${id}`, {
             method: 'PUT',
@@ -117,7 +122,7 @@ async function cambiarEstado(id, estadoActual) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}` 
             },
-            body: JSON.stringify({ completada: !estadoActual })
+            body: JSON.stringify({ completada: nuevoEstado })
         });
         mostrarTareas();
     } catch (error) {
@@ -146,7 +151,9 @@ async function editar(id, textoActual) {
 }
 
 // --- 4. EVENTOS ---
-addBtn.onclick = agregar;
+if (addBtn) {
+    addBtn.onclick = agregar;
+}
 taskInput.addEventListener("keypress", (e) => { if (e.key === "Enter") agregar(); });
 
 // Cargar todo al iniciar
