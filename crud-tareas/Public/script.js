@@ -1,160 +1,305 @@
-// --- 1. GUARDIA DE SEGURIDAD (TOKEN) ---
-const token = localStorage.getItem("token");
-
-if (!token) {
-    // Si no hay token, no preguntamos nada, directo al login
-    window.location.href = "login.html";
-}
-
-// Función para cerrar sesión
-function cerrarSesion() {
-    localStorage.removeItem("token");
-    window.location.href = "login.html";
-}
-
-// --- 2. CONFIGURACIÓN DEL CRUD ---
 let tasks = [];
-const taskInput = document.getElementById("taskInput");
-const addBtn = document.getElementById("addBtn");
-const taskList = document.getElementById("taskList");
 
-// --- 3. FUNCIONES CONECTADAS AL BACKEND ---
+const taskInput =
+    document.getElementById("taskInput");
 
+const addBtn =
+    document.getElementById("addBtn");
+
+const taskList =
+    document.getElementById("taskList");
+
+
+// Mostrar tareas
 async function mostrarTareas() {
+
     try {
-        const respuesta = await fetch('/tareas', {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (respuesta.status === 401 || respuesta.status === 403) {
-            // Si el token es inválido o expiró, limpiamos y redirigimos
-            localStorage.removeItem("token");
-            alert("Tu sesión ha expirado. Inicia sesión de nuevo.");
-            window.location.href = "login.html";
+
+        const respuesta =
+            await fetch('/tareas', {
+                credentials: 'include'
+            });
+
+        // Si no está autenticado
+        if (
+            respuesta.status === 401 ||
+            respuesta.status === 403
+        ) {
+
+            // Solo redirige sin alert
+            window.location.href = "/";
+
             return;
         }
 
-        if (respuesta.ok) {
-            tasks = await respuesta.json();
-            renderizarPantalla();
-        }
+        tasks =
+            await respuesta.json();
+
+        renderizarPantalla();
+
     } catch (error) {
-        console.error("Error de conexión:", error);
+
+        console.error(
+            "Error:", error
+        );
+
     }
+
 }
 
+
+// Renderizar tareas
 function renderizarPantalla() {
+
     taskList.innerHTML = "";
+
     if (tasks.length === 0) {
-        taskList.innerHTML = '<div class="empty-state">No hay tareas. ¡Agrega una!</div>';
+
+        taskList.innerHTML = `
+        <div class="empty-state">
+            No hay tareas. ¡Agrega una!
+        </div>
+        `;
+
         return;
     }
 
-    tasks.forEach(function (tarea) {
-        let li = document.createElement("li");
-        li.className = tarea.completada ? "task-item completed" : "task-item";
+    tasks.forEach((tarea) => {
 
-        // Usamos tarea.completada (que viene de la DB como 0 o 1)
-        const isChecked = tarea.completada === 1 || tarea.completada === true;
+        const li =
+            document.createElement("li");
+
+        li.className =
+            tarea.completada
+                ? "task-item completed"
+                : "task-item";
 
         li.innerHTML = `
             <div class="task-content">
-                <input type="checkbox" ${isChecked ? "checked" : ""} 
-                    onchange="cambiarEstado(${tarea.id}, ${tarea.completada})">
-                <span class="task-text">${tarea.titulo || "Sin título"}</span>
+
+                <input
+                    type="checkbox"
+                    ${tarea.completada ? "checked" : ""}
+                    onchange="cambiarEstado(
+                        ${tarea.id},
+                        ${tarea.completada}
+                    )"
+                >
+
+                <span class="task-text">
+                    ${tarea.titulo}
+                </span>
+
             </div>
+
             <div class="task-actions">
-                <button onclick="editar(${tarea.id}, '${tarea.titulo}')">Editar</button>
-                <button onclick="eliminar(${tarea.id})">Eliminar</button>
-            </div>`;
+
+                <button onclick="
+                    editar(
+                        ${tarea.id},
+                        '${tarea.titulo}'
+                    )
+                ">
+                    Editar
+                </button>
+
+                <button onclick="
+                    eliminar(${tarea.id})
+                ">
+                    Eliminar
+                </button>
+
+            </div>
+        `;
+
         taskList.appendChild(li);
+
     });
+
 }
+
 
 // Agregar tarea
 async function agregar() {
-    let texto = taskInput.value.trim();
-    if (texto === "") return alert("Escribe una tarea");
+
+    const texto =
+        taskInput.value.trim();
+
+    if (!texto) {
+        alert("Escribe una tarea");
+        return;
+    }
 
     try {
-        const respuesta = await fetch('/tareas', {
+
+        await fetch('/tareas', {
+
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
+
+            credentials: 'include',
+
+            headers: {
+                'Content-Type':
+                    'application/json'
             },
-            body: JSON.stringify({ titulo: texto, descripcion: "" })
+
+            body: JSON.stringify({
+                titulo: texto,
+                descripcion: ""
+            })
+
         });
 
-        if (respuesta.ok) {
-            taskInput.value = "";
-            mostrarTareas();
-        }
+        taskInput.value = "";
+
+        mostrarTareas();
+
     } catch (error) {
-        alert("Error al guardar la tarea");
+
+        console.error(error);
+
     }
+
 }
+
 
 // Eliminar tarea
 async function eliminar(id) {
-    if (confirm("¿Eliminar tarea?")) {
-        try {
-            const respuesta = await fetch(`/tareas/${id}`, {
+
+    if (!confirm(
+        "¿Eliminar tarea?"
+    )) return;
+
+    try {
+
+        await fetch(
+            `/tareas/${id}`,
+            {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (respuesta.ok) mostrarTareas();
-        } catch (error) {
-            alert("Error al eliminar");
-        }
+                credentials: 'include'
+            }
+        );
+
+        mostrarTareas();
+
+    } catch (error) {
+
+        console.error(error);
+
     }
+
 }
+
 
 // Cambiar estado
-async function cambiarEstado(id, estadoActual) {
-    // Convertimos a 1 o 0 para la base de datos
-    const nuevoEstado = estadoActual ? 0 : 1; 
+async function cambiarEstado(
+    id,
+    estadoActual
+) {
+
     try {
-        await fetch(`/tareas/${id}`, {
-            method: 'PUT',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify({ completada: nuevoEstado })
-        });
+
+        await fetch(
+            `/tareas/${id}`,
+            {
+
+                method: 'PUT',
+
+                credentials: 'include',
+
+                headers: {
+                    'Content-Type':
+                        'application/json'
+                },
+
+                body: JSON.stringify({
+                    completada:
+                        !estadoActual
+                })
+
+            }
+        );
+
         mostrarTareas();
+
     } catch (error) {
-        console.error("Error al actualizar");
+
+        console.error(error);
+
     }
+
 }
+
 
 // Editar tarea
-async function editar(id, textoActual) {
-    let nuevo = prompt("Editar tarea:", textoActual);
-    if (nuevo && nuevo.trim() !== "") {
-        try {
-            await fetch(`/tareas/${id}`, {
+async function editar(
+    id,
+    textoActual
+) {
+
+    const nuevo =
+        prompt(
+            "Editar tarea:",
+            textoActual
+        );
+
+    if (
+        !nuevo ||
+        nuevo.trim() === ""
+    ) return;
+
+    try {
+
+        await fetch(
+            `/tareas/${id}`,
+            {
+
                 method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
+
+                credentials: 'include',
+
+                headers: {
+                    'Content-Type':
+                        'application/json'
                 },
-                body: JSON.stringify({ titulo: nuevo.trim() })
-            });
-            mostrarTareas();
-        } catch (error) {
-            alert("Error al editar");
-        }
+
+                body: JSON.stringify({
+                    titulo:
+                        nuevo.trim()
+                })
+
+            }
+        );
+
+        mostrarTareas();
+
+    } catch (error) {
+
+        console.error(error);
+
     }
+
 }
 
-// --- 4. EVENTOS ---
-if (addBtn) {
+
+// Eventos
+if (addBtn && taskInput) {
+
     addBtn.onclick = agregar;
-}
-taskInput.addEventListener("keypress", (e) => { if (e.key === "Enter") agregar(); });
 
-// Cargar todo al iniciar
-mostrarTareas();
+    taskInput.addEventListener(
+        "keypress",
+        (e) => {
+
+            if (e.key === "Enter") {
+
+                agregar();
+
+            }
+
+        }
+    );
+
+    mostrarTareas();
+
+}
